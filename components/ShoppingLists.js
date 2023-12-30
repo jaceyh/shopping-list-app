@@ -4,7 +4,7 @@ import { collection, getDocs, addDoc, onSnapshot, query, where } from "firebase/
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNetInfo }from '@react-native-community/netinfo';
 
-const ShoppingLists = ({ db, route }) => {
+const ShoppingLists = ({ db, route, isConnected }) => {
 
     const { userID } = route.params;
 
@@ -12,6 +12,8 @@ const ShoppingLists = ({ db, route }) => {
     const [listName, setListName] = useState("");
     const [item1, setItem1] = useState("");
     const [item2, setItem2] = useState("");
+    const [item3, setItem3] = useState("");
+    const [item4, setItem4] = useState("");
 
     /* OLD Read query before real-time data sync
     const fetchShoppingLists = async () => {
@@ -34,22 +36,32 @@ const ShoppingLists = ({ db, route }) => {
         }
     }
 
+    let unsubShoppinglists;
     useEffect(() => {
-        const q = query(collection(db, "shoppinglists"), where ("uid", "==", userID));
-        const unsubShoppinglists = onSnapshot(q, (documentsSnapshot) => {
-            let newLists = [];
-            documentsSnapshot.forEach(doc => {
-              newLists.push({ id: doc.id, ...doc.data() })
+        if (isConnected === true) {
+
+            // unregister current onSnapshot() listener to avoid registering multiple listeners when
+            // useEffect code is re-executed.
+            if (unsubShoppinglists) unsubShoppinglists();
+            unsubShoppinglists = null;
+
+            const q = query(collection(db, "shoppinglists"), where ("uid", "==", userID));
+            unsubShoppinglists = onSnapshot(q, (documentsSnapshot) => {
+                let newLists = [];
+                documentsSnapshot.forEach(doc => {
+                    newLists.push({ id: doc.id, ...doc.data() })
+                });
+                cacheShoppingLists(newLists)
+                setLists(newLists);
             });
-            cacheShoppingLists(newLists)
-            setLists(newLists);
-        });
+        } else loadCachedLists();
 
         //clean-up code
         return () => {
             if (unsubShoppinglists) unsubShoppinglists();
         }
-    }, [`${lists}`]);
+    }, [`${lists}`, isConnected]);
+
 
     const cacheShoppingLists = async (listsToCache) => {
         try {
@@ -57,6 +69,11 @@ const ShoppingLists = ({ db, route }) => {
         } catch (error) {
           console.log(error.message);
         }
+    }
+
+    const loadCachedLists = async () => {
+        const cachedLists = await AsyncStorage.getItem("shopping_lists") || [];
+        setLists(JSON.parse(cachedLists));
     }
 
     return (
@@ -70,24 +87,42 @@ const ShoppingLists = ({ db, route }) => {
             </View>
             }
             />
+            {(isConnected === true) ?
             <View style={styles.listForm}>
                 <TextInput
                 style={styles.listName}
                 placeholder="List Name"
+                placeholderTextColor="#7a7a7a"
                 value={listName}
                 onChangeText={setListName}
                 />
                 <TextInput
                 style={styles.item}
                 placeholder="Item #1"
+                placeholderTextColor="#7a7a7a"
                 value={item1}
                 onChangeText={setItem1}
                 />
                 <TextInput
                 style={styles.item}
                 placeholder="Item #2"
+                placeholderTextColor="#7a7a7a"
                 value={item2}
                 onChangeText={setItem2}
+                />
+                <TextInput
+                style={styles.item}
+                placeholder="Item #3"
+                placeholderTextColor="#7a7a7a"
+                value={item3}
+                onChangeText={setItem3}
+                />
+                <TextInput
+                style={styles.item}
+                placeholder="Item #4"
+                placeholderTextColor="#7a7a7a"
+                value={item4}
+                onChangeText={setItem4}
                 />
                 <TouchableOpacity
                 style={styles.addButton}
@@ -95,14 +130,16 @@ const ShoppingLists = ({ db, route }) => {
                     const newList = {
                         uid: userID,
                         name: listName,
-                        items: [item1, item2]
+                        items: [item1, item2, item3, item4]
                     }
                     addShoppingList(newList);
                  }}
                 >
                     <Text style={styles.addButtonText}>Add</Text>
                 </TouchableOpacity>
-            </View>
+            </View> : null
+            }
+
             {Platform.OS === "ios" ? <KeyboardAvoidingView behavior="padding" /> : null}
         </View>
     )
@@ -111,7 +148,8 @@ const ShoppingLists = ({ db, route }) => {
 
 const styles = StyleSheet.create({
     container: {
-        flex: 1
+        flex: 1,
+        backgroundColor: "#F3FAF3"
     },
     listItem: {
         height: 70,
@@ -123,11 +161,11 @@ const styles = StyleSheet.create({
         flexGrow: 1
     },
     listForm: {
-        flexBasis: 275,
+        flexBasis: 450,
         flex: 0,
         margin: 15,
         padding: 15,
-        backgroundColor: "#CCC"
+        backgroundColor: "#C3E8C6"
     },
     listName: {
         height: 50,

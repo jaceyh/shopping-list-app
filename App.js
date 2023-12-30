@@ -11,7 +11,7 @@ const Stack = createNativeStackNavigator();
 
 //import firestore
 import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import { disableNetwork, enableNetwork, getFirestore } from "firebase/firestore";
 
 //import useNetInfo to determine user's connectivity status
 import { useNetInfo } from "@react-native-community/netinfo";
@@ -20,6 +20,8 @@ import { useNetInfo } from "@react-native-community/netinfo";
 import ShoppingLists from './components/ShoppingLists';
 import Welcome from './components/Welcome';
 import { ScreenStackHeaderLeftView } from 'react-native-screens';
+
+LogBox.ignoreLogs(["AsyncStorage has been extracted from"]);
 
 const App = () => {
 
@@ -39,14 +41,19 @@ const App = () => {
     // Initialize Cloud Firestore and get a reference to the service
     const db = getFirestore(app);
 
-    //define a new state the represents connectivity status
+    // define a new state the represents connectivity status
     const connectionStatus = useNetInfo();
 
-    //display an alert if connection is lost
+    // display an alert and disable attempts to reconnect to Firestore if connection is lost
     useEffect(() => {
-        if (connectionStatus.isConnected === false) Alert.alert("Connection lost!")
+        if (connectionStatus.isConnected === false) {
+            Alert.alert("Connection lost!");
+            disableNetwork(db);
+        }else if (connectionStatus.isConnected === true) {
+            enableNetwork(db);
+        }
     }, [connectionStatus.isConnected]);
-    
+
 
 
     return (
@@ -61,7 +68,7 @@ const App = () => {
                 <Stack.Screen
                 name='ShoppingLists'
                 >
-                {props => <ShoppingLists db={db} {...props} />}
+                {props => <ShoppingLists isConnected={connectionStatus.isConnected} db={db} {...props} />}
                 </Stack.Screen>
             </Stack.Navigator>
             <StatusBar style="auto" />
@@ -72,7 +79,7 @@ const App = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: "#F3FAF3",
     alignItems: 'center',
     justifyContent: 'center',
   },
